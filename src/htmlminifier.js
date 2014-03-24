@@ -1,4 +1,4 @@
-/* global CSSOCompressor: true, CSSOTranslator: true, cleanInfo: true, srcToCSSP: true */
+/* global CleanCSS */
 
 (function(global) {
   'use strict';
@@ -36,7 +36,12 @@
 
   function collapseWhitespaceSmart(str, prevTag, nextTag) {
     // array of tags that will maintain a single space outside of them
-    var tags = ['a', 'abbr', 'acronym', 'b', 'bdi', 'bdo', 'big', 'button', 'cite', 'code', 'del', 'dfn', 'em', 'font', 'i', 'ins', 'kbd', 'mark', 'q', 'rt', 'rp', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'time', 'tt', 'u', 'var'];
+    var tags = [
+      'a', 'abbr', 'acronym', 'b', 'bdi', 'bdo', 'big', 'button', 'cite',
+      'code', 'del', 'dfn', 'em', 'font', 'i', 'ins', 'kbd', 'mark', 'q',
+      'rt', 'rp', 's', 'samp', 'small', 'span', 'strike', 'strong',
+      'sub', 'sup', 'time', 'tt', 'u', 'var'
+    ];
 
     if (prevTag && prevTag !== 'img' && (prevTag.substr(0,1) !== '/'
       || ( prevTag.substr(0,1) === '/' && tags.indexOf(prevTag.substr(1)) === -1))) {
@@ -160,9 +165,15 @@
     );
   }
 
-  function cleanAttributeValue(tag, attrName, attrValue) {
+  function cleanAttributeValue(tag, attrName, attrValue, options) {
     if (isEventAttribute(attrName)) {
-      return trimWhitespace(attrValue).replace(/^javascript:\s*/i, '').replace(/\s*;$/, '');
+      attrValue = trimWhitespace(attrValue).replace(/^javascript:\s*/i, '').replace(/\s*;$/, '');
+      if (options.minifyJS) {
+        var wrappedCode = '(function(){' + attrValue + '})()';
+        var minified = minifyJS(wrappedCode);
+        return minified.slice(12, minified.length - 4);
+      }
+      return attrValue;
     }
     else if (attrName === 'class') {
       return collapseWhitespace(trimWhitespace(attrValue));
@@ -171,7 +182,11 @@
       return trimWhitespace(attrValue);
     }
     else if (attrName === 'style') {
-      return trimWhitespace(attrValue).replace(/\s*;\s*$/, '');
+      attrValue = trimWhitespace(attrValue).replace(/\s*;\s*$/, '');
+      if (options.minifyCSS) {
+        return minifyCSS(attrValue);
+      }
+      return attrValue;
     }
     return attrValue;
   }
@@ -250,7 +265,7 @@
       return '';
     }
 
-    attrValue = cleanAttributeValue(tag, attrName, attrValue);
+    attrValue = cleanAttributeValue(tag, attrName, attrValue, options);
 
     if (!options.removeAttributeQuotes ||
         !canRemoveAttributeQuotes(attrValue)) {
@@ -325,29 +340,24 @@
       }
     }
     catch (err) {
-      console.log(err);
-      return text;
+      log(err);
     }
+    return text;
   }
 
   function minifyCSS(text) {
     try {
-      var csso;
-
-      if (typeof require === 'function' && (csso = require('csso'))) {
-        return csso.justDoIt(text);
+      if (typeof CleanCSS !== 'undefined') {
+        return new CleanCSS().minify(text);
       }
-      else if (typeof CSSOCompressor !== 'undefined' &&
-               typeof CSSOTranslator !== 'undefined') {
-
-        var compressor = new CSSOCompressor(),
-            translator = new CSSOTranslator();
-
-        return translator.translate(cleanInfo(compressor.compress(srcToCSSP(text, 'stylesheet', true))));
+      else if (typeof require === 'function') {
+        var CleanCSSModule = require('clean-css');
+        return new CleanCSSModule().minify(text);
       }
     }
-    catch (err) { }
-
+    catch (err) {
+      log(err);
+    }
     return text;
   }
 
