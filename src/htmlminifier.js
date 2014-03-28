@@ -184,7 +184,7 @@
     else if (attrName === 'style') {
       attrValue = trimWhitespace(attrValue).replace(/\s*;\s*$/, '');
       if (options.minifyCSS) {
-        return minifyCSS(attrValue);
+        return minifyCSS(attrValue, options.minifyCSSOptions);
       }
       return attrValue;
     }
@@ -345,14 +345,14 @@
     return text;
   }
 
-  function minifyCSS(text) {
+  function minifyCSS(text, options) {
     try {
       if (typeof CleanCSS !== 'undefined') {
-        return new CleanCSS().minify(text);
+        return new CleanCSS(options).minify(text);
       }
       else if (typeof require === 'function') {
         var CleanCSSModule = require('clean-css');
-        return new CleanCSSModule().minify(text);
+        return new CleanCSSModule(options).minify(text);
       }
     }
     catch (err) {
@@ -459,7 +459,7 @@
           text = minifyJS(text);
         }
         if (currentTag === 'style' && options.minifyCSS) {
-          text = minifyCSS(text);
+          text = minifyCSS(text, options.minifyCSSOptions);
         }
         if (options.collapseWhitespace) {
           if (!stackNoTrimWhitespace.length) {
